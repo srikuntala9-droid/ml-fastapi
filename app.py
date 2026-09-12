@@ -3,9 +3,24 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 import joblib
 import numpy as np
+import os
+import requests
+
+# Download model if not available
+MODEL_PATH = "model.pkl"
+MODEL_URL = "https://github.com/srikuntala9-droid/ml-fastapi/releases/download/v1.0-model/model.pkl"
+
+if not os.path.exists(MODEL_PATH):
+    response = requests.get(MODEL_URL, stream=True)
+    response.raise_for_status()
+
+    with open(MODEL_PATH, "wb") as f:
+        for chunk in response.iter_content(chunk_size=1024 * 1024):
+            if chunk:
+                f.write(chunk)
 
 # Load trained model
-model = joblib.load("model.pkl")
+model = joblib.load(MODEL_PATH)
 
 app = FastAPI(
     title="AQI Classification API",
