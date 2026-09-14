@@ -6,8 +6,15 @@ import numpy as np
 import os
 import requests
 
-# Download model if not available
+# Load trained model
 MODEL_PATH = "model.pkl"
+model = joblib.load(MODEL_PATH)
+
+# Load clustering model
+CLUSTER_MODEL_PATH = "cluster_model.pkl"
+cluster_model = joblib.load(CLUSTER_MODEL_PATH)
+
+# Model download URL
 MODEL_URL = "https://github.com/srikuntala9-droid/ml-fastapi/releases/download/v1.0-model/model.pkl"
 
 if not os.path.exists(MODEL_PATH):
@@ -66,8 +73,8 @@ def health():
     return {"status": "healthy"}
 
 
-@app.post("/predict")
-def predict(data: AQIInput):
+@app.post("/cluster")
+def cluster(data: AQIInput):
 
     features = np.array([[
         data.hour_00,
@@ -95,6 +102,12 @@ def predict(data: AQIInput):
         data.hour_22,
         data.hour_23
     ]])
+
+    cluster_prediction = cluster_model.predict(features)[0]
+
+    return {
+        "cluster": int(cluster_prediction)
+    }
 
 
     prediction = model.predict(features)[0]
