@@ -1,46 +1,23 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-import joblib
 import numpy as np
-import os
-import requests
+import joblib
 
-# Load trained model
-MODEL_PATH = "model.pkl"
-model = joblib.load(MODEL_PATH)
+app = FastAPI(title="AQI Classification API")
 
-# Load clustering model
-CLUSTER_MODEL_PATH = "cluster_model.pkl"
-cluster_model = joblib.load(CLUSTER_MODEL_PATH)
-
-# Model download URL
-MODEL_URL = "https://github.com/srikuntala9-droid/ml-fastapi/releases/download/v1.0-model/model.pkl"
-
-if not os.path.exists(MODEL_PATH):
-    response = requests.get(MODEL_URL, stream=True)
-    response.raise_for_status()
-
-    with open(MODEL_PATH, "wb") as f:
-        for chunk in response.iter_content(chunk_size=1024 * 1024):
-            if chunk:
-                f.write(chunk)
-
-# Load trained model
-model = joblib.load(MODEL_PATH)
-
-app = FastAPI(
-    title="AQI Classification API",
-    description="FastAPI for AQI Category Prediction",
-    version="1.0"
-)
+# Allow frontend to access the API
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://aqi-classification-frontend.onrender.com"],
-    allow_credentials=True,
+    allow_origins=["*"],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Load model
+model = joblib.load("model.pkl")
+
 
 class AQIInput(BaseModel):
     hour_00: float
@@ -74,13 +51,8 @@ def home():
     return {"message": "AQI Classification API is running"}
 
 
-@app.get("/health")
-def health():
-    return {"status": "healthy"}
-
-
-@app.post("/cluster")
-def cluster(data: AQIInput):
+@app.post("/predict")
+def predict(data: AQIInput):
 
     features = np.array([[
         data.hour_00,
@@ -109,17 +81,8 @@ def cluster(data: AQIInput):
         data.hour_23
     ]])
 
-    cluster_prediction = cluster_model.predict(features)[0]
+    prediction = model.predict(features)
 
     return {
-        "cluster": int(cluster_prediction)
-    }
-
-
-    prediction = model.predict(features)[0]
-    probabilities = model.predict_proba(features)[0]
-
-    return {
-        "prediction": prediction,
-        "probabilities": probabilities.tolist()
+        "prediction": str(prediction[0])
     }
