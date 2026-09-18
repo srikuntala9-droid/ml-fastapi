@@ -1,32 +1,10 @@
-
 from fastapi import FastAPI
 from pydantic import BaseModel
 import joblib
 import numpy as np
-import os
-import requests
 
-# Load trained model
+# Load Classification model
 MODEL_PATH = "model.pkl"
-model = joblib.load(MODEL_PATH)
-
-# Load clustering model
-CLUSTER_MODEL_PATH = "cluster_model.pkl"
-cluster_model = joblib.load(CLUSTER_MODEL_PATH)
-
-# Model download URL
-MODEL_URL = "https://github.com/srikuntala9-droid/ml-fastapi/releases/download/v1.0-model/model.pkl"
-
-if not os.path.exists(MODEL_PATH):
-    response = requests.get(MODEL_URL, stream=True)
-    response.raise_for_status()
-
-    with open(MODEL_PATH, "wb") as f:
-        for chunk in response.iter_content(chunk_size=1024 * 1024):
-            if chunk:
-                f.write(chunk)
-
-# Load trained model
 model = joblib.load(MODEL_PATH)
 
 app = FastAPI(
@@ -35,7 +13,7 @@ app = FastAPI(
     version="1.0"
 )
 
-
+# Input data: 24 hourly AQI values
 class AQIInput(BaseModel):
     hour_00: float
     hour_01: float
@@ -73,8 +51,8 @@ def health():
     return {"status": "healthy"}
 
 
-@app.post("/cluster")
-def cluster(data: AQIInput):
+@app.post("/predict")
+def predict(data: AQIInput):
 
     features = np.array([[
         data.hour_00,
@@ -103,17 +81,8 @@ def cluster(data: AQIInput):
         data.hour_23
     ]])
 
-    cluster_prediction = cluster_model.predict(features)[0]
-
-    return {
-        "cluster": int(cluster_prediction)
-    }
-
-
     prediction = model.predict(features)[0]
-    probabilities = model.predict_proba(features)[0]
 
     return {
-        "prediction": prediction,
-        "probabilities": probabilities.tolist()
+        "prediction": str(prediction)
     }
